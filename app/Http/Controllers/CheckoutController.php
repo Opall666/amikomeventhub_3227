@@ -168,8 +168,8 @@ class CheckoutController extends Controller
                     
                     // Kirim email E-Ticket
                     try {
-                        \Illuminate\Support\Facades\Mail::to($transaction->customer_email)
-                            ->send(new \App\Mail\EventTicketMail($transaction));
+                        \App\Jobs\SendEticketJob::dispatch($transaction);
+                    
                         \Log::info('E-Ticket email sent via fallback check to: ' . $transaction->customer_email);
                     } catch (\Exception $e) {
                         \Log::error('Gagal mengirim email E-Ticket via fallback: ' . $e->getMessage());

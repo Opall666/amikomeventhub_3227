@@ -83,8 +83,7 @@ class WebhookController extends Controller
     {
         // Kirim email E-Ticket ke customer
         try {
-            \Illuminate\Support\Facades\Mail::to($transaction->customer_email)
-                ->send(new \App\Mail\EventTicketMail($transaction));
+            \App\Jobs\SendEticketJob::dispatch($transaction);
                 
             Log::info('E-Ticket email sent to: ' . $transaction->customer_email);
         } catch (\Exception $e) {
