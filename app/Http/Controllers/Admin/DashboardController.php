@@ -13,6 +13,8 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        // Auto cleanup expired reservations
+        \App\Models\Transaction::cleanupExpiredReservations();
         // Stats Cards
         $totalRevenue = Transaction::whereIn('status', ['success', 'settlement'])->sum('total_price');
         $totalTicketsSold = Transaction::whereIn('status', ['success', 'settlement'])->count();

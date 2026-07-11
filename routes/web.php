@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\EventController;
-use App\Http\Controllers\CheckoutController; // ← TAMBAHKAN INI
+use App\Http\Controllers\CheckoutController; 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Admin\DashboardController;
@@ -12,6 +12,8 @@ use App\Http\Controllers\Admin\TransactionController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\PartnerController;
 use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Schedule;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -64,6 +66,8 @@ Route::middleware('auth')->group(function () {
      // TAMBAHKAN 2 ROUTE INI ↓
     Route::get('/payment/{order_id}', [CheckoutController::class, 'payment'])->name('checkout.payment');
     Route::get('/success/{order_id}', [CheckoutController::class, 'success'])->name('checkout.success');
+
+    Route::post('/payment/{order_id}/cancel', [CheckoutController::class, 'cancel'])->name('checkout.cancel');
     
     // Ticket (Menampilkan tiket berdasarkan Order ID)
     Route::get('/my-ticket/{order_id}', [EventController::class, 'ticket'])->name('ticket');
@@ -96,3 +100,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
 Route::post('/midtrans/webhook', [\App\Http\Controllers\Midtrans\WebhookController::class, 'handleNotification'])
     ->name('midtrans.webhook')
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
+// Jalankan setiap menit untuk release expired reservations
+Schedule::command('reservations:release-expired')->everyMinute();

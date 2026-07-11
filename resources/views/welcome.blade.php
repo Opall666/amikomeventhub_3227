@@ -16,9 +16,9 @@
             Dari konser musik hingga workshop teknologi, semua ada di genggamanmu. Pesan aman & cepat dengan Midtrans.
         </p>
         <div class="flex gap-4">
-            <a href="{{ route('home') }}#events" class="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-indigo-200 hover:scale-105 transition-transform">
+            <button onclick="scrollToEvents()" class="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-indigo-200 hover:scale-105 transition-transform cursor-pointer">
                 Mulai Jelajah
-            </a>
+            </button>
             <a href="{{ route('cara-kerja') }}" class="px-8 py-4 border-2 border-slate-200 rounded-2xl font-bold text-lg hover:border-indigo-600 hover:text-indigo-600 transition">
                 Cara Pesan
             </a>
@@ -48,11 +48,38 @@
 
 <!-- Events Section -->
 <section id="events" class="max-w-7xl mx-auto px-6 py-20">
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-6">
         <div>
             <h2 class="text-3xl font-extrabold mb-2">Event Terdekat</h2>
             <p class="text-slate-500 font-medium">Jangan sampai ketinggalan acara seru minggu ini!</p>
         </div>
+        
+        <!-- Search Form -->
+        <form action="{{ route('home') }}#events" method="GET" class="w-full md:w-96 relative">
+            <!-- Pertahankan filter kategori saat search -->
+            @if($activeCategory)
+                <input type="hidden" name="category" value="{{ $activeCategory }}">
+            @endif
+            
+            <input type="text" name="search" value="{{ request('search') }}" 
+                placeholder="Cari nama event atau lokasi..." 
+                class="w-full pl-11 pr-10 py-3 bg-white border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 outline-none transition font-medium shadow-sm">
+            
+            <!-- Icon Search -->
+            <svg class="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+            
+            <!-- Tombol Clear Search -->
+            @if(request('search'))
+                <a href="{{ route('home', ['category' => $activeCategory]) }}#events" 
+                   class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition bg-white rounded-full p-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </a>
+            @endif
+        </form>
     </div>
 
     <!-- Filter Tabs Kategori -->
@@ -75,17 +102,23 @@
     </div>
 
     <!-- Info Filter Aktif -->
-    @if($activeCategory)
-        <div class="mb-6 p-4 bg-indigo-50 border-l-4 border-indigo-500 rounded-lg flex justify-between items-center">
-            <p class="text-sm text-slate-700">
-                Menampilkan <span class="font-bold text-indigo-600">{{ $events->count() }}</span> event untuk kategori
-                <span class="font-bold text-indigo-600">
-                    {{ $categories->firstWhere('slug', $activeCategory)?->name }}
-                </span>
-            </p>
-                <a href="{{ route('home') }}#events" class="text-sm font-bold text-indigo-600 hover:underline">
-                    Reset Filter ✕
-                </a>
+    @if($activeCategory || request('search'))
+        <div class="mb-6 p-4 bg-indigo-50 border-l-4 border-indigo-500 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="text-sm text-slate-700">
+                <p>
+                    Menampilkan <span class="font-bold text-indigo-600">{{ $events->total() }}</span> event
+                    @if($activeCategory)
+                        untuk kategori 
+                        <span class="font-bold text-indigo-600">{{ $categories->firstWhere('slug', $activeCategory)?->name }}</span>
+                    @endif
+                    @if(request('search'))
+                        dengan pencarian <span class="font-bold text-indigo-600">"{{ request('search') }}"</span>
+                    @endif
+                </p>
+            </div>
+            <a href="{{ route('home') }}#events" class="text-sm font-bold text-indigo-600 hover:underline whitespace-nowrap">
+                Reset Semua Filter ✕
+            </a>
         </div>
     @endif
 
@@ -139,9 +172,17 @@
                     </div>
                 </div>
             @endforeach
+            
+            <!-- Pagination -->
+            @if($events->hasPages())
+                <div class="col-span-full mt-10 flex justify-center">
+                    {{ $events->fragment('events')->links() }}
+                </div>
+            @endif
         </div>
     @else
-        <!-- Empty State -->
+    
+    <!-- Empty State -->
         <div class="text-center py-20 bg-white rounded-3xl border border-slate-100">
             <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,11 +190,19 @@
                         d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
             </div>
-            <h3 class="text-xl font-bold text-slate-800 mb-2">Tidak Ada Event</h3>
-            <p class="text-slate-500 mb-6">Belum ada event yang tersedia untuk kategori ini.</p>
-                <a href="{{ route('home') }}#events" class="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition">
-                    Lihat Semua Event
+            
+            @if(request('search') || $activeCategory)
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Event Tidak Ditemukan</h3>
+                <p class="text-slate-500 mb-6 max-w-md mx-auto">
+                    Tidak ada event yang cocok dengan pencarian atau filter Anda. Coba ubah kata kunci atau reset filter.
+                </p>
+                <a href="{{ route('home') }}#events" class="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition">
+                    Reset Semua Filter
                 </a>
+            @else
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Belum Ada Event</h3>
+                <p class="text-slate-500 mb-6">Belum ada event yang tersedia saat ini. Cek lagi nanti!</p>
+            @endif
         </div>
     @endif
 </section>
@@ -222,33 +271,40 @@
 </section>
 @endif
 
-<!-- Auto-Scroll Script -->
+<!-- Smooth Scroll Script -->
 <script>
-    // Auto-scroll ke section events jika ada anchor #events di URL
+    // Fungsi untuk scroll ke section events
+    function scrollToEvents() {
+        const eventsSection = document.getElementById('events');
+        if (eventsSection) {
+            // Hitung offset untuk navbar (navbar height + margin)
+            const navbarHeight = 100;
+            const elementPosition = eventsSection.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - navbarHeight;
+            
+            // Smooth scroll
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth'
+            });
+            
+            // Update URL tanpa reload
+            history.pushState(null, null, '#events');
+            
+            // Highlight effect
+            eventsSection.classList.add('ring-4', 'ring-indigo-300', 'rounded-2xl', 'transition-all', 'duration-500');
+            setTimeout(() => {
+                eventsSection.classList.remove('ring-4', 'ring-indigo-300', 'rounded-2xl');
+            }, 2000);
+        }
+    }
+    
+    // Auto-scroll jika URL mengandung #events (dari link kategori)
     document.addEventListener('DOMContentLoaded', function() {
-        // Cek apakah URL mengandung #events
         if (window.location.hash === '#events') {
-            const eventsSection = document.getElementById('events');
-            if (eventsSection) {
-                // Tunggu sebentar agar konten selesai load
-                setTimeout(() => {
-                    // Smooth scroll dengan offset untuk navbar
-                    const offset = 100;
-                    const elementPosition = eventsSection.getBoundingClientRect().top;
-                    const offsetPosition = elementPosition + window.pageYOffset - offset;
-                    
-                    window.scrollTo({
-                        top: offsetPosition,
-                        behavior: 'smooth'
-                    });
-                    
-                    // Highlight section events
-                    eventsSection.classList.add('ring-4', 'ring-indigo-300', 'rounded-2xl');
-                    setTimeout(() => {
-                        eventsSection.classList.remove('ring-4', 'ring-indigo-300', 'rounded-2xl');
-                    }, 2000);
-                }, 100);
-            }
+            setTimeout(() => {
+                scrollToEvents();
+            }, 200);
         }
     });
 </script>

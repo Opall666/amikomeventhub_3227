@@ -82,4 +82,39 @@ class Transaction extends Model
             && $this->reserved_until 
             && $this->reserved_until->isPast();
     }
+
+        /**
+     * Cleanup expired reservations (dipanggil di halaman yang sering diakses)
+     */
+    public static function cleanupExpiredReservations()
+    {
+        $expired = self::where('status', 'reserved')
+            ->where('reserved_until', '<', now())
+            ->with('event')
+            ->get();
+
+        foreach ($expired as $reservation) {
+            try {
+                \Illuminate\Support\Facades\DB::transaction(function () use ($reservation) {
+                    $reservation->update(['status' => 'expired']);
+                    
+                    if ($reservation->event) {
+                        $reservation->event->increment('stock');
+                    }
+                    
+                    \App\Models\ActivityLog::create([
+                        'transaction_id' => $reservation->id,
+                        'action' => 'reservation_expired_cleanup',
+                        'old_status' => 'reserved',
+                        'new_status' => 'expired',
+                        'reason' => 'Auto cleanup on page access',
+                    ]);
+                });
+            } catch (\Exception $e) {
+                \Log::error('Cleanup failed for: ' . $reservation->order_id);
+            }
+        }
+
+        return $expired->count();
+    }
 }

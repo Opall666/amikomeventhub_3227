@@ -93,41 +93,91 @@ class EventController extends Controller
 
     public function myTickets()
     {
+        // Auto cleanup expired reservations (quick fix)
+        \App\Models\Transaction::cleanupExpiredReservations();
+
         $userEmail = Auth::user()->email;
         
-        // 1. Ambil data untuk tampilan (dengan pagination)
-        $transactions = Transaction::with('event')
-            ->where('customer_email', $userEmail)
-            ->latest()
-            ->paginate(10);
+        // Ambil parameter dari URL (Filter & Search)
+        $filter = request('filter', 'all'); // all, active, success, pending, expired
+        $search = request('search', '');
 
-        // 2. Hitung Stats
-        // Tiket Berhasil (Sudah dibayar)
-        $successTickets = Transaction::where('customer_email', $userEmail)
-            ->whereIn('status', ['success', 'settlement'])
-            ->count();
-        
-        // Tiket Pending (Belum dibayar & waktu masih ada / < 24 jam)
-        $pendingTickets = Transaction::where('customer_email', $userEmail)
-            ->where('status', 'pending')
-            ->where('created_at', '>=', now()->subHours(24))
-            ->count();
-            
-        // Tiket Kadaluarsa (Belum dibayar & waktu sudah lewat > 24 jam)
-        $expiredTickets = Transaction::where('customer_email', $userEmail)
-            ->where('status', 'pending')
-            ->where('created_at', '<', now()->subHours(24))
-            ->count();
+        // 1. Hitung Stats (Selalu hitung semua, tidak terpengaruh filter/search)
+        $stats = [
+            'active' => Transaction::where('customer_email', $userEmail)
+                ->whereIn('status', ['success', 'settlement'])
+                ->whereHas('event', fn($q) => $q->where('date', '>=', now()))
+                ->count(),
+            'success' => Transaction::where('customer_email', $userEmail)
+                ->whereIn('status', ['success', 'settlement'])
+                ->count(),
+            'pending' => Transaction::where('customer_email', $userEmail)
+                ->whereIn('status', ['reserved', 'pending'])
+                ->where('reserved_until', '>', now())
+                ->count(),
+            'expired' => Transaction::where('customer_email', $userEmail)
+                ->where(function($q) {
+                    $q->where('status', 'expired')
+                      ->orWhere('status', 'failed')
+                      ->orWhere('status', 'cancelled')
+                      ->orWhere(function($subQ) {
+                          $subQ->whereIn('status', ['reserved', 'pending'])
+                               ->where('reserved_until', '<=', now());
+                      });
+                })
+                ->count(),
+        ];
 
-        // TOTAL TIKET AKTIF = Berhasil + Pending (belum expired)
-        $activeTickets = $successTickets + $pendingTickets;
+        // 2. Build Query Utama
+        $query = Transaction::where('customer_email', $userEmail)->with('event');
+
+        // 3. Apply Search (Cari berdasarkan Order ID atau Nama Event)
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('order_id', 'like', "%{$search}%")
+                  ->orWhereHas('event', function($eq) use ($search) {
+                      $eq->where('title', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // 4. Apply Filter
+        switch ($filter) {
+            case 'active':
+                $query->whereIn('status', ['success', 'settlement'])
+                      ->whereHas('event', fn($q) => $q->where('date', '>=', now()));
+                break;
+            case 'success':
+                $query->whereIn('status', ['success', 'settlement']);
+                break;
+            case 'pending':
+                $query->whereIn('status', ['reserved', 'pending'])
+                      ->where('reserved_until', '>', now());
+                break;
+            case 'expired':
+                $query->where(function($q) {
+                    $q->where('status', 'expired')
+                      ->orWhere('status', 'failed')
+                      ->orWhere('status', 'cancelled')
+                      ->orWhere(function($subQ) {
+                          $subQ->whereIn('status', ['reserved', 'pending'])
+                               ->where('reserved_until', '<=', now());
+                      });
+                });
+                break;
+            default:
+                // 'all' - tidak ada filter tambahan
+                break;
+        }
+
+        // 5. Eksekusi Query dengan Pagination & Pertahankan Query Params
+        $transactions = $query->latest()->paginate(10)->appends(request()->query());
 
         return view('my-tickets', compact(
             'transactions', 
-            'activeTickets', 
-            'successTickets', 
-            'pendingTickets', 
-            'expiredTickets'
+            'stats', 
+            'filter', 
+            'search'
         ));
     }
 }

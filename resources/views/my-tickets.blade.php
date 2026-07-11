@@ -4,231 +4,120 @@
 
 @section('content')
 <div class="max-w-7xl mx-auto px-6 py-12">
-    <!-- Header -->
-    <div class="mb-8">
-        <h1 class="text-4xl font-black text-slate-800 mb-2">Tiket Saya 🎫</h1>
-        <p class="text-slate-500">Riwayat pembelian tiket event Anda</p>
+    
+    <!-- Header & Search Bar -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+            <h1 class="text-4xl font-black text-slate-800 mb-1">Tiket Saya 🎫</h1>
+            <p class="text-slate-500">Kelola dan pantau semua riwayat tiket event Anda</p>
+        </div>
+        
+        <!-- Search Form -->
+        <form action="{{ route('tickets.index') }}" method="GET" class="w-full md:w-96 relative">
+            <input type="text" name="search" value="{{ $search }}" 
+                placeholder="Cari Order ID atau Nama Event..." 
+                class="w-full pl-11 pr-4 py-3 bg-white border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 outline-none transition font-medium shadow-sm">
+            <svg class="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+            @if($search)
+                <a href="{{ route('tickets.index', ['filter' => $filter]) }}" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </a>
+            @endif
+        </form>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-2xl text-white shadow-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-indigo-100 text-sm font-medium mb-1">Tiket Aktif</p>
-                    <p class="text-3xl font-black">{{ $activeTickets }}</p>
-                </div>
-                <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path>
-                    </svg>
-                </div>
-            </div>
-        </div>
+    <!-- 4 Clickable Stats Cards (Filters) -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        @php
+            $filters = [
+                'all' => ['label' => 'Semua Tiket', 'count' => array_sum($stats), 'color' => 'slate', 'icon' => 'M4 6h16M4 10h16M4 14h16M4 18h16'],
+                'active' => ['label' => 'Tiket Aktif', 'count' => $stats['active'], 'color' => 'indigo', 'icon' => 'M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z'],
+                'success' => ['label' => 'Pembayaran Berhasil', 'count' => $stats['success'], 'color' => 'green', 'icon' => 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'],
+                'pending' => ['label' => 'Menunggu Pembayaran', 'count' => $stats['pending'], 'color' => 'amber', 'icon' => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
+                'expired' => ['label' => 'Tiket Kadaluarsa', 'count' => $stats['expired'], 'color' => 'red', 'icon' => 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'],
+            ];
+        @endphp
 
-        <div class="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-2xl text-white shadow-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-green-100 text-sm font-medium mb-1">Berhasil</p>
-                    <p class="text-3xl font-black">
-                        {{ $successTickets }}
-                    </p>
+        @foreach($filters as $key => $data)
+            @php
+                $isActive = $filter === $key;
+                $bgClass = $isActive ? "bg-{$data['color']}-600 text-white shadow-lg shadow-{$data['color']}-500/30" : "bg-white text-slate-700 border-2 border-slate-100 hover:border-{$data['color']}-200 hover:shadow-md";
+                $iconBgClass = $isActive ? "bg-white/20" : "bg-{$data['color']}-50 text-{$data['color']}-600";
+            @endphp
+            <a href="{{ route('tickets.index', array_merge(request()->query(), ['filter' => $key])) }}" 
+               class="block p-5 rounded-2xl transition-all duration-200 transform hover:-translate-y-1 {{ $bgClass }}">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center {{ $iconBgClass }}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $data['icon'] }}"></path>
+                        </svg>
+                    </div>
+                    <span class="text-3xl font-black">{{ $data['count'] }}</span>
                 </div>
-                <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-gradient-to-br from-yellow-500 to-orange-600 p-6 rounded-2xl text-white shadow-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-yellow-100 text-sm font-medium mb-1">Pending</p>
-                    <p class="text-3xl font-black">
-                        {{ $pendingTickets }}
-                    </p>
-                </div>
-                <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-            </div>
-        </div>
+                <p class="text-sm font-bold {{ $isActive ? 'text-white' : 'text-slate-500' }}">{{ $data['label'] }}</p>
+            </a>
+        @endforeach
     </div>
 
-    <!-- Tickets List -->
+    <!-- Active Filter Indicator -->
+    @if($filter !== 'all' || $search)
+        <div class="flex items-center gap-3 mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+            <p class="text-sm text-indigo-800 font-medium">
+                Menampilkan: 
+                <span class="font-bold uppercase">{{ $filters[$filter]['label'] ?? 'Semua' }}</span>
+                @if($search) <span class="mx-2">•</span> Pencarian: <span class="font-bold">"{{ $search }}"</span> @endif
+            </p>
+            <a href="{{ route('tickets.index') }}" class="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-800 underline">Reset Filter</a>
+        </div>
+    @endif
+
+    <!-- Tickets Grid -->
     @if($transactions->count() > 0)
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($transactions as $transaction)
-                <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
-                    <!-- Ticket Header -->
-                    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-4 text-white relative overflow-hidden">
-                        <div class="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                        <div class="relative z-10">
-                            <p class="text-xs font-bold uppercase tracking-wider text-indigo-100 mb-1">Order ID</p>
-                            <p class="font-mono font-bold text-sm">{{ $transaction->order_id }}</p>
-                        </div>
-                    </div>
-
-                    <!-- Ticket Body -->
-                    <div class="p-6">
-                        <h3 class="font-bold text-slate-800 text-lg mb-3 line-clamp-2">{{ $transaction->event->title }}</h3>
-                        
-                        <div class="space-y-2 mb-4">
-                            <div class="flex items-center gap-2 text-sm text-slate-600">
-                                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                </svg>
-                                <span>{{ $transaction->event->date->format('d M Y, H:i') }}</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-sm text-slate-600">
-                                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                </svg>
-                                <span class="truncate">{{ $transaction->event->location }}</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-sm text-slate-600">
-                                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                <span class="font-bold text-indigo-600">Rp {{ number_format($transaction->total_price, 0, ',', '.') }}</span>
-                            </div>
-                        </div>
-
-                        <!-- Status Badge -->
-                        <div class="mb-4">
-                            @php
-                                $statusLower = strtolower($transaction->status);
-                            @endphp
-                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase 
-                                @if(in_array($statusLower, ['success', 'settlement'])) bg-green-100 text-green-700
-                                @elseif($statusLower === 'pending') bg-yellow-100 text-yellow-700
-                                @else bg-red-100 text-red-700 @endif">
-                                @if(in_array($statusLower, ['success', 'settlement']))
-                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                                    </svg>
-                                    Berhasil
-                                @elseif($statusLower === 'pending')
-                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
-                                    </svg>
-                                    Menunggu Pembayaran
-                                @else
-                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                                    </svg>
-                                    Gagal
-                                @endif
-                            </span>
-                        </div>
-
-                        {{-- Countdown untuk Pending --}}
-                        @if($statusLower === 'pending')
-                            @php
-                                $expiredAt = $transaction->created_at->copy()->addHours(24);
-                                $remainingMinutes = now()->diffInMinutes($expiredAt, false);
-                                
-                                if ($remainingMinutes <= 0) {
-                                    $remainingHours = 0;
-                                    $remainingMins = 0;
-                                    $isExpired = true;
-                                } else {
-                                    $remainingHours = floor($remainingMinutes / 60);
-                                    $remainingMins = $remainingMinutes % 60;
-                                    $isExpired = false;
-                                }
-                            @endphp
-                            
-                            @if(!$isExpired)
-                                <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-                                    <p class="text-xs text-yellow-700 font-bold mb-1"> Batas Pembayaran:</p>
-                                    <p class="text-sm font-bold text-yellow-800">
-                                        @if($remainingHours > 0)
-                                            {{ $remainingHours }} jam 
-                                        @endif
-                                        {{ $remainingMins }} menit lagi
-                                    </p>
-                                </div>
-                            @else
-                                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
-                                    <p class="text-xs text-red-700 font-bold">⚠️ Pembayaran Sudah Kadaluarsa</p>
-                                </div>
-                            @endif
-                        @endif
-
-                        <!-- Action Buttons -->
-                        <div class="flex flex-col gap-2">
-                            @if(in_array($statusLower, ['success', 'settlement']))
-                                {{-- Tombol Lihat E-Ticket untuk Success --}}
-                                <a href="{{ route('ticket', $transaction->order_id) }}" 
-                                    class="block w-full py-3 bg-indigo-600 text-white text-center rounded-xl font-bold hover:bg-indigo-700 transition">
-                                    Lihat E-Ticket
-                                </a>
-                            @elseif($statusLower === 'pending')
-                                {{-- Cek apakah masih dalam batas waktu pembayaran --}}
-                                @php
-                                    $expiredAt = $transaction->created_at->copy()->addHours(24);
-                                    $isExpired = now()->greaterThan($expiredAt);
-                                @endphp
-                                
-                                @if(!$isExpired)
-                                    {{-- Tombol untuk Pending yang BELUM expired --}}
-                                    <a href="{{ route('checkout.payment', $transaction->order_id) }}" 
-                                        class="block w-full py-3 bg-yellow-500 text-white text-center rounded-xl font-bold hover:bg-yellow-600 transition">
-                                        💳 Bayar Sekarang
-                                    </a>
-                                    <a href="{{ route('ticket', $transaction->order_id) }}" 
-                                        class="block w-full py-3 bg-slate-100 text-slate-700 text-center rounded-xl font-bold hover:bg-slate-200 transition">
-                                        Detail Pesanan
-                                    </a>
-                                @else
-                                    {{-- Tombol untuk Pending yang SUDAH expired --}}
-                                    <div class="text-center py-3 text-red-600 font-bold text-sm">
-                                        Pembayaran Kadaluarsa
-                                    </div>
-                                    <a href="{{ route('home') }}" 
-                                        class="block w-full py-3 bg-slate-100 text-slate-700 text-center rounded-xl font-bold hover:bg-slate-200 transition">
-                                        Pesan Event Lain
-                                    </a>
-                                @endif
-                            @else
-                                {{-- Tombol untuk Failed --}}
-                                <a href="{{ route('home') }}" 
-                                    class="block w-full py-3 bg-slate-100 text-slate-700 text-center rounded-xl font-bold hover:bg-slate-200 transition">
-                                    Pesan Event Lain
-                                </a>
-                            @endif
-                        </div>
-                    </div>
-                </div>
+                @php
+                    // Tentukan tipe kartu berdasarkan status asli
+                    $statusLower = strtolower($transaction->status);
+                    if (in_array($statusLower, ['success', 'settlement'])) $type = 'active';
+                    elseif (in_array($statusLower, ['reserved', 'pending']) && $transaction->reserved_until && $transaction->reserved_until->isFuture()) $type = 'pending';
+                    else $type = 'expired';
+                @endphp
+                @include('partials.ticket-card', ['transaction' => $transaction, 'type' => $type])
             @endforeach
         </div>
 
         <!-- Pagination -->
-        @if($transactions->hasPages())
-            <div class="mt-8 flex justify-center">
-                {{ $transactions->links() }}
-            </div>
-        @endif
+        <div class="mt-12">
+            {{ $transactions->links() }}
+        </div>
     @else
         <!-- Empty State -->
-        <div class="bg-white rounded-2xl shadow-lg p-12 text-center">
-            <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg class="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path>
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-16 text-center">
+            <div class="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
             </div>
-            <h3 class="text-2xl font-bold text-slate-800 mb-2">Belum Ada Tiket</h3>
-            <p class="text-slate-500 mb-6">Anda belum membeli tiket event apapun.</p>
-            <a href="{{ route('home') }}" 
-                class="inline-block px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition">
-                Jelajahi Event
-            </a>
+            <h3 class="text-2xl font-black text-slate-800 mb-2">Tidak Ada Tiket Ditemukan</h3>
+            <p class="text-slate-500 mb-8 max-w-md mx-auto">
+                @if($search || $filter !== 'all')
+                    Tidak ada tiket yang cocok dengan filter atau pencarian Anda. Coba ubah kata kunci atau reset filter.
+                @else
+                    Anda belum memiliki tiket event. Jelajahi event menarik dan dapatkan tiket Anda sekarang!
+                @endif
+            </p>
+            @if($search || $filter !== 'all')
+                <a href="{{ route('tickets.index') }}" class="inline-block px-8 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition">
+                    Reset Filter & Pencarian
+                </a>
+            @else
+                <a href="{{ route('home') }}" class="inline-block px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/30">
+                    Jelajahi Event
+                </a>
+            @endif
         </div>
     @endif
 </div>
