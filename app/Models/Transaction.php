@@ -19,6 +19,10 @@ class Transaction extends Model
         'total_price',
         'status',
         'snap_token',
+        'reserved_until',
+    ];
+    protected $casts = [
+    'reserved_until' => 'datetime', // ← TAMBAHKAN INI
     ];
 
     // Relasi: Transaction belongs to satu event
@@ -31,5 +35,51 @@ class Transaction extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+    * Relasi ke Activity Logs (riwayat perubahan status)
+    */
+    public function activityLogs()
+    {
+        return $this->hasMany(ActivityLog::class);
+    }
+
+    /**
+     * Scope: Transaksi yang masih dalam masa reservation
+     */
+    public function scopeReserved($query)
+    {
+        return $query->where('status', 'reserved')
+                    ->where('reserved_until', '>', now());
+    }
+
+    /**
+     * Scope: Transaksi yang sudah expired (belum bayar lewat 15 menit)
+     */
+    public function scopeExpired($query)
+    {
+        return $query->where('status', 'reserved')
+                    ->where('reserved_until', '<=', now());
+    }
+
+    /**
+     * Cek apakah transaksi masih dalam masa reservation
+     */
+    public function isReserved(): bool
+    {
+        return $this->status === 'reserved' 
+            && $this->reserved_until 
+            && $this->reserved_until->isFuture();
+    }
+
+    /**
+     * Cek apakah transaksi sudah expired
+     */
+    public function isExpired(): bool
+    {
+        return $this->status === 'reserved' 
+            && $this->reserved_until 
+            && $this->reserved_until->isPast();
     }
 }
