@@ -88,10 +88,17 @@
                 <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6 md:gap-8">
                     <div>
                         <p class="text-indigo-200 font-bold uppercase tracking-widest text-xs md:text-sm mb-2">Harga Tiket</p>
-                        <h2 class="text-3xl md:text-5xl font-black">
-                            Rp {{ number_format($event->price, 0, ',', '.') }}
-                            <span class="text-sm md:text-lg font-medium text-indigo-200">/ orang</span>
-                        </h2>
+                        @if($event->price == 0)
+                            <h2 class="text-3xl md:text-5xl font-black">
+                                GRATIS
+                                <span class="text-sm md:text-lg font-medium text-indigo-200">/ orang</span>
+                            </h2>
+                        @else
+                            <h2 class="text-3xl md:text-5xl font-black">
+                                Rp {{ number_format($event->price, 0, ',', '.') }}
+                                <span class="text-sm md:text-lg font-medium text-indigo-200">/ orang</span>
+                            </h2>
+                        @endif
                         <p class="mt-3 md:mt-4 text-indigo-100 flex items-center gap-2 text-sm md:text-base">
                             <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -103,7 +110,11 @@
                     <div>
                         <a href="{{ route('checkout', $event->id) }}"
                             class="inline-block px-8 md:px-10 py-4 md:py-5 bg-white text-indigo-600 rounded-2xl font-black text-lg md:text-xl hover:scale-105 transition-transform shadow-xl">
-                            Pesan Sekarang
+                            @if($event->price == 0)
+                                🎉 Daftar Gratis
+                            @else
+                                Pesan Sekarang
+                            @endif
                         </a>
                     </div>
                 </div>
@@ -146,9 +157,15 @@
         <!-- Info Harga (Kiri) -->
         <div class="flex-1 min-w-0">
             <p class="text-xs text-slate-500 font-medium">Harga Tiket</p>
-            <p class="text-lg sm:text-xl font-black text-indigo-600 truncate">
-                Rp {{ number_format($event->price, 0, ',', '.') }}
-            </p>
+            @if($event->price == 0)
+                <p class="text-lg sm:text-xl font-black text-green-600 truncate">
+                    GRATIS
+                </p>
+            @else
+                <p class="text-lg sm:text-xl font-black text-indigo-600 truncate">
+                    Rp {{ number_format($event->price, 0, ',', '.') }}
+                </p>
+            @endif
             <p class="text-xs text-slate-400 truncate">
                 Stok: {{ $event->stock }} tersedia
             </p>
@@ -157,7 +174,11 @@
         <!-- Tombol Pesan (Kanan) -->
         <a href="{{ route('checkout', $event->id) }}"
             class="flex-shrink-0 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition">
-            Pesan Sekarang
+            @if($event->price == 0)
+                🎉 Daftar
+            @else
+                Pesan
+            @endif
         </a>
     </div>
 </div>

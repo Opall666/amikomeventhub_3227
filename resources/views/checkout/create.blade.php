@@ -57,21 +57,31 @@
                 </div>
             </div>
             
-            <!-- Price Breakdown -->
-            <div class="mt-4 sm:mt-6 md:mt-8 pt-4 sm:pt-6 border-t border-slate-100 space-y-2 sm:space-y-3">
-                <div class="flex justify-between text-xs sm:text-sm text-slate-500">
-                    <span>Harga Tiket</span>
-                    <span>Rp {{ number_format($event->price, 0, ',', '.') }}</span>
-                </div>
-                <div class="flex justify-between text-xs sm:text-sm text-slate-500">
-                    <span>Biaya Layanan</span>
-                    <span>Rp 5.000</span>
-                </div>
-                <div class="flex justify-between items-center text-base sm:text-lg md:text-2xl font-black mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100">
-                    <span>Total Bayar</span>
-                    <span class="text-indigo-600">Rp {{ number_format($event->price + 5000, 0, ',', '.') }}</span>
-                </div>
-            </div>
+<!-- Price Breakdown -->
+<div class="mt-4 sm:mt-6 md:mt-8 pt-4 sm:pt-6 border-t border-slate-100 space-y-2 sm:space-y-3">
+    <div class="flex justify-between text-xs sm:text-sm text-slate-500">
+        <span>Harga Tiket</span>
+        @if($event->price == 0)
+            <span class="font-bold text-green-600">GRATIS</span>
+        @else
+            <span>Rp {{ number_format($event->price, 0, ',', '.') }}</span>
+        @endif
+    </div>
+    @if($event->price > 0)
+        <div class="flex justify-between text-xs sm:text-sm text-slate-500">
+            <span>Biaya Layanan</span>
+            <span>Rp 5.000</span>
+        </div>
+    @endif
+    <div class="flex justify-between items-center text-base sm:text-lg md:text-2xl font-black mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100">
+        <span>Total Bayar</span>
+        @if($event->price == 0)
+            <span class="text-green-600">GRATIS</span>
+        @else
+            <span class="text-indigo-600">Rp {{ number_format($event->price + 5000, 0, ',', '.') }}</span>
+        @endif
+    </div>
+</div>
         </div>
 
         <!-- Form Card -->
@@ -156,7 +166,11 @@
                 <!-- Submit Button -->
                 <button type="submit" 
                     class="w-full py-3.5 sm:py-4 md:py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl sm:rounded-2xl font-bold sm:font-black text-base sm:text-lg md:text-xl shadow-xl shadow-indigo-200 hover:shadow-2xl hover:scale-[1.02] active:scale-95 transition-all mt-2 sm:mt-4">
-                    💳 Lanjutkan Pembayaran
+                    @if($event->price == 0)
+                        🎉 Daftar Sekarang (Gratis)
+                    @else
+                        💳 Lanjutkan Pembayaran
+                    @endif
                 </button>
                 
                 <!-- Terms -->

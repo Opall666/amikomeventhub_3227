@@ -29,81 +29,103 @@ class CheckoutController extends Controller
      * Proses penyimpanan transaksi dengan RESERVED STOCK SYSTEM
      * Menggunakan atomic transaction untuk mencegah race condition
      */
-    public function store(Request $request, Event $event)
+    public function store(Request $request, $eventId)
     {
-        // 1. Validasi Input
+        // Validasi input
         $request->validate([
             'customer_name' => 'required|string|max:255',
             'customer_email' => 'required|email|max:255',
             'customer_phone' => 'required|string|max:20',
         ]);
 
-        // 2. ATOMIC TRANSACTION + ROW LOCKING (Mencegah Race Condition)
+        // Ambil event dengan lock untuk mencegah race condition
+        $event = Event::lockForUpdate()->findOrFail($eventId);
+
+        // Cek stok tersedia
+        if ($event->stock <= 0) {
+            return redirect()->back()->with('error', 'Maaf, stok tiket sudah habis!');
+        }
+
+        // Cek apakah event GRATIS
+        $isFreeEvent = ($event->price == 0);
+
         try {
-            $transaction = DB::transaction(function () use ($request, $event) {
-                // Lock row event untuk mencegah concurrent update
-                // Ini akan memblokir transaksi lain sampai transaksi ini selesai
-                $lockedEvent = Event::where('id', $event->id)
-                    ->lockForUpdate()
-                    ->first();
-                
-                // Cek stok setelah lock (double check)
-                if ($lockedEvent->stock <= 0) {
-                    throw new \Exception('Stok habis! Tiket sudah terjual semua.');
-                }
+            return DB::transaction(function () use ($event, $request, $isFreeEvent) {
+                // Kurangi stok event
+                $event->decrement('stock');
 
-                // 3. Reserve stok (kurangi 1)
-                $lockedEvent->decrement('stock');
-                
-                // 4. Generate Order ID Unik
-                $orderId = 'TRX-' . time() . '-' . Str::random(5);
-                $totalPrice = $lockedEvent->price + 5000; // Harga + biaya admin
+                // Generate Order ID unik
+                $orderId = 'TRX-' . time() . '-' . strtoupper(Str::random(6));
 
-                // 5. Simpan transaksi dengan status RESERVED
-                $trx = Transaction::create([
-                    'user_id' => auth()->id(),
-                    'event_id' => $lockedEvent->id,
+                // Hitung total harga
+                $serviceFee = $isFreeEvent ? 0 : 5000; // Biaya layanan hanya untuk event berbayar
+                $totalPrice = $event->price + $serviceFee;
+
+                // Buat transaksi
+                $transaction = Transaction::create([
                     'order_id' => $orderId,
+                    'event_id' => $event->id,
                     'customer_name' => $request->customer_name,
                     'customer_email' => $request->customer_email,
                     'customer_phone' => $request->customer_phone,
                     'total_price' => $totalPrice,
-                    'status' => 'reserved', // ← Status baru: reserved
-                    'reserved_until' => now()->addMinutes(15), // ← Batas waktu 15 menit
+                    'status' => $isFreeEvent ? 'success' : 'reserved', // Langsung success jika gratis
+                    'reserved_until' => $isFreeEvent ? null : now()->addMinutes(15), // Tidak perlu reserved_until jika gratis
+                    'snap_token' => null, // Tidak perlu snap_token jika gratis
                 ]);
 
-                return $trx;
+                // Catat di activity log
+                \App\Models\ActivityLog::create([
+                    'user_id' => auth()->id(),
+                    'transaction_id' => $transaction->id,
+                    'action' => $isFreeEvent ? 'free_event_registered' : 'checkout_created',
+                    'old_status' => null,
+                    'new_status' => $transaction->status,
+                    'reason' => $isFreeEvent ? 'Event gratis - langsung sukses' : 'Checkout dibuat - menunggu pembayaran',
+                ]);
+
+                // Jika event GRATIS, langsung kirim email E-Ticket
+                if ($isFreeEvent) {
+                    \App\Jobs\SendEticketJob::dispatch($transaction);
+                    
+                    return redirect()->route('ticket', $orderId)
+                        ->with('success', 'Pendaftaran berhasil! E-Ticket telah dikirim ke email Anda.');
+                }
+
+                // Jika event BERBAYAR, buat Snap Token Midtrans
+                $midtransParams = [
+                    'enable_payments' => ['gopay', 'bank_transfer', 'qris'],
+                    'transaction_details' => [
+                        'order_id' => $transaction->order_id,
+                        'gross_amount' => (int) $transaction->total_price,
+                    ],
+                    'customer_details' => [
+                        'first_name' => $transaction->customer_name,
+                        'email' => $transaction->customer_email,
+                        'phone' => $transaction->customer_phone,
+                    ],
+                    'expiry' => [
+                        'start_time' => now()->format('Y-m-d H:i:s'),
+                        'unit' => 'minutes',
+                        'duration' => 15,
+                    ],
+                ];
+
+                try {
+                    $snapToken = \Midtrans\Snap::getSnapToken($midtransParams);
+                    $transaction->update(['snap_token' => $snapToken]);
+                } catch (\Exception $e) {
+                    \Log::error('Midtrans Snap Token Error: ' . $e->getMessage());
+                    return redirect()->back()->with('error', 'Gagal membuat token pembayaran. Silakan coba lagi.');
+                }
+
+                // Redirect ke halaman pembayaran
+                return redirect()->route('checkout.payment', $transaction->order_id);
             });
 
-            // 6. Generate Midtrans Snap Token (di luar DB transaction)
-            \Midtrans\Config::$serverKey = config('midtrans.server_key');
-            \Midtrans\Config::$isProduction = config('midtrans.is_production');
-            \Midtrans\Config::$isSanitized = true;
-            \Midtrans\Config::$is3ds = true;
-
-            $params = [
-                'transaction_details' => [
-                    'order_id' => $transaction->order_id,
-                    'gross_amount' => $transaction->total_price,
-                ],
-                'customer_details' => [
-                    'first_name' => $transaction->customer_name,
-                    'email' => $transaction->customer_email,
-                    'phone' => $transaction->customer_phone,
-                ],
-            ];
-
-            $snapToken = \Midtrans\Snap::getSnapToken($params);
-            
-            // 7. Simpan Snap Token ke database
-            $transaction->update(['snap_token' => $snapToken]);
-            
-            // 8. Redirect ke halaman pembayaran
-            return redirect()->route('checkout.payment', $transaction->order_id);
-            
         } catch (\Exception $e) {
-            // Handle error (stok habis, Midtrans error, dll)
-            return back()->with('error', 'Gagal memproses checkout: ' . $e->getMessage());
+            \Log::error('Checkout Error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Terjadi kesalahan saat memproses pesanan. Silakan coba lagi.');
         }
     }
 
