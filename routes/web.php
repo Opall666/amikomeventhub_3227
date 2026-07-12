@@ -41,6 +41,10 @@ Route::middleware('guest')->group(function () {
     
     Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
     Route::post('/register', [RegisterController::class, 'register']);
+
+    // ✅ Google OAuth Routes (PINDAHKAN KE SINI!)
+    Route::get('/auth/google', [App\Http\Controllers\Auth\GoogleController::class, 'redirectToGoogle'])->name('auth.google');
+    Route::get('/auth/google/callback', [App\Http\Controllers\Auth\GoogleController::class, 'handleGoogleCallback']);
 });
 
 /*
